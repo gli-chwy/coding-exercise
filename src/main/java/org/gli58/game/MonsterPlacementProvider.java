@@ -4,5 +4,5 @@ import java.util.List;
 import java.util.function.BiFunction;
 
 @FunctionalInterface
-interface MonsterMoveProvider extends BiFunction<Monster, List<Direction>, Direction> {
+interface MonsterPlacementProvider extends BiFunction<List<City>, Monster, City> {
 }

@@ -1,4 +1,4 @@
-package org.gli58.event;
+package org.gli58.game.event;
 
 /**
  * The event handling mechanism can be made async, through messaging channel, etc.

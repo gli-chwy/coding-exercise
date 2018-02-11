@@ -1,6 +1,11 @@
-package org.gli58.domain;
+package org.gli58.game;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.EnumMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * City is immutable in terms of its name, but the neighbor data is mutable.
@@ -10,6 +15,8 @@ import java.util.*;
  */
 public class City {
     private final String name;
+
+    public final Lock lock = new ReentrantLock();
 
     //eagerly initialize as majority of the cities should be connected anyway
     private EnumMap<Direction, City> neighbors = new EnumMap<Direction, City>(Direction.class);
@@ -24,10 +31,6 @@ public class City {
 
     public String getName() {
         return name;
-    }
-
-    public boolean hasNeighbor(Direction direction) {
-        return neighbors.containsKey(direction);
     }
 
     public City getNeighbor(Direction direction) {

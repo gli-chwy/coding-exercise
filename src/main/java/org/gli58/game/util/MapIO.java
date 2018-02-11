@@ -1,9 +1,9 @@
-package org.gli58.util;
+package org.gli58.game.util;
 
-import org.gli58.MapParsingException;
-import org.gli58.MapSavingToFileException;
-import org.gli58.domain.City;
-import org.gli58.domain.Direction;
+import org.gli58.game.exceptions.MapParsingException;
+import org.gli58.game.exceptions.MapSavingToFileException;
+import org.gli58.game.City;
+import org.gli58.game.Direction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

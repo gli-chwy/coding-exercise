@@ -1,73 +1,112 @@
-#  Coding Exercise
+#  Coding Exercise - version 2
 
-## Main classes
+## Changes
 
-The central abstraction is `Game`. It can be initialized with deterministic
-monster locations through `MonsterPlacement`, if not, then game is initialized with monsters randomly
-assigned to cities.
+My original interpretation of the instructions was that the game is
+played step by step sequentially. I decided to try with the monsters
+moving, not in unison, but autonomously.
 
-At each step of the game, caller can supply deterministic monster moves through `MonsterMoveProvider`. Otherwise, monsters will move randomly. Assumption is that monsters will always move unless they are trapped.
+This new implementation is checked in under the branch __autonomous__.
+While the major abstractions remain the same, there are also extensive changes. Some of which are:
 
-_Note `MonsterPlacement` and `MonsterMoveProvider` are for testability
-in this exercise._
+* `Monster` is now a `Runnable`, to model its behavior that it moves
+on its own instead of being driven through API call.
 
-Game can be supplied with a `EventHandler`. The abstraction is to plug in
-handlers for game events. Currently, the `ConsoleLoggingEventHandler` is
-set up by default to log the `FightEvent`, which is required in the
-instructions.
+* `Game` becomes essentially a data container, as the game logic
+goes into `Monster`. But because there are many more _dependencies_ to
+initialize when a game is created, I put in a Builder so that game can
+be created conveniently - with the builder supplying the defaults.
 
-`City`, `Monster`, and `Direction` are straightforward.
+  For example, a game (having one monster) can be created as simply as:
+  ```
+  final Set<City> cities = MapIO.getCitiesFromStream(inputCities);
 
-Parsing map from file and and saving map to file are handled through `MapIO`.
-It's a static utility class with good testability.
+  Game game = new Game.Builder(cities, 1)
+      .build();
+  ```
 
-## Usage
+  or a game (with two monsters) can be created by specifying more configuration values:
 
-This test case showcases how to play the game (by client code):
+  ```
+  Game game = new Game.Builder(originalCities, 2)
+      .minMoves(100)
+      .threads(2)
+      .placementProvider(placementProvider)
+      .moveProvider(moveProvider)
+      .durationProvider(durationProvider)
+      .eventHandler(capturingEventHandler)
+      .build();
+  ```
 
-```
-@Test
-public void playingEntireWorldXWithAllRandomMoves() {
-    final Set<City> cities = MapIO.getCitiesFromClasspathResource("map.txt");
+* A new extension point is added through `ResidenceDurationProvider` so that the length of stay of a monster in a city can be supplied. By default, it's a random period. But a deterministic provider can be used in test code:
 
-    int monsterCount = 1000;
+  ```
+  ResidenceDurationProvider durationProvider = new ResidenceDurationProvider() {
+      @Override
+      public int getDurationInMillis(Monster monster) {
+          switch ((int) monster.getId()) {
+              case 1:
+                  return 100;
+              case 2:
+                  return 120;
+              default:
+                  throw new IllegalArgumentException("not possible");
+          }
+      }
+  };
+  ```
+  In code snippet above, monster 1 will always stay in the city it occupied for (roughly) 100 milliseconds, while monster 2 will stay for 120 milliseconds. Through these deterministic
+  configuration, program behavior can be verified in tests.
 
-    Game game = new Game(cities, monsterCount);
-    game.setEventHandler(new ConsoleLoggingEventHandler());
 
-    for (int i=0;i<10_000; i++) {
-        boolean canContinue = game.playOnce();
+## Design considerations
 
-        if (!canContinue) {
-            break;
-        }
-    }
+For performance, there is no locking on global data structures. Instead, __atomic__ variables, concurrent data structures (such as `ConcurrentHashMap.newKeySet` for maintaining the cities data) are used where appropriate.
 
-    //intentionally writing to a known file path here
-    MapIO.writeCitiesToFile(game.getCities(), "/tmp/game_over.txt");
+For each move, a monster must __leave__ its current city, and then __occupy__ the next city. Those two events must succeed or fail together,
+similar to a transaction. But because there can very well
+be another monster trying to move in exactly the opposite direction,
+lock ordering deadlock can happen if Java's intrinsic locks were used.
+To prevent that, each `City` is associated with its own explicit `ReentrantLock`, and through the result of `trylock` operation, each monster can decide whether to proceed (when both locks are acquired) or back off and try again later (when it
+  fails to acquire either lock).
 
-    logger.info(game.getSummaryDescription());
-}
-```
+The only place where intrinsic lock being used is for the main thread to wait
+for game to finish through `wait` and `notify`.
 
-A driver program would go through similar steps as above, therefore such driver class has not been provided.
+In summary, through the extensive use of concurrency data structure, explicit locking, and a few other details/tricks, the game is both
+thread safe and highly performant.
 
-From command line, `mvn test` runs all the tests, and `mvn site` generates the API docs. Please import into IDE to follow the class
-structure easily.
 
-## Other tests
+  ## Usage
 
-There are multiple tests that check the correctness of the code with smaller
-map, deterministic monster location and moves.
+  This test case showcases how to play the game:
 
-`GameTest#testTwoMonstersMovingTowardMiddle()` also verifies the output of
-`FightEvent`s by customizing game with a `CapturingEventHandler`.
+  ```
+  @Test
+  public void playingEntireWorldXWithAllRandomMoves() {
+      final Set<City> cities = MapIO.getCitiesFromClasspathResource("map.txt");
 
-## Notes
+      int monsterCount = 2000;
 
-* Playing this game does not appear to be amenable to being made parallel, so there has been no concurrency considerations in the
-design. Each game should be confined within a single thread.
+      Game game = new Game.Builder(cities, monsterCount)
+              .minMoves(10_000)
+              .threads(50)
+              .build();
 
-* I started defining the model classes such as `Monster`, `City` etc, then worked on the parsing and game logic, with testing code all along. In projects these would have been multiple commits, but for the exercise, I made one commit.
+      game.startGame();
 
-* Brief API doc is located [here](target/site/apidocs/index.html)
+      //intentionally writing to a known file path here
+      MapIO.writeCitiesToFile(game.getCities(), "/tmp/game_over.txt");
+  }
+  ```
+
+  The above test creates a game with __2000 monsters__ to run in __50 threads__, and
+  it will terminate when all monsters are _killed_, _trapped_, or have moved no less than _10000 steps_.
+
+  ## Other tests
+
+  There are multiple tests that check the correctness of the code with smaller
+  map, deterministic monster __locations__, __moves__ and __timing__.
+
+  `TwoMonsterTest` also verifies the output of
+  `FightEvent`s by customizing game with a `CapturingEventHandler`.

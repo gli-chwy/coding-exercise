@@ -1,4 +1,4 @@
-package org.gli58.domain;
+package org.gli58.game;
 
 public enum Direction {
     NORTH, SOUTH, EAST, WEST;

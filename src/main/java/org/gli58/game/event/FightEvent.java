@@ -1,7 +1,7 @@
-package org.gli58.event;
+package org.gli58.game.event;
 
-import org.gli58.domain.City;
-import org.gli58.domain.Monster;
+import org.gli58.game.City;
+import org.gli58.game.Monster;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -17,9 +17,8 @@ public class FightEvent implements Event {
     private final long id;
     private final City city;
     private final Set<Monster> monsters;
-    private final long moveId;
 
-    public FightEvent(long id, City city, Set<Monster> monsters, long moveId) {
+    public FightEvent(long id, City city, Set<Monster> monsters) {
         if (city == null) {
             throw new IllegalArgumentException("city cannot be null");
         }
@@ -31,11 +30,10 @@ public class FightEvent implements Event {
         this.id = id;
         this.city = city;
         this.monsters = Collections.unmodifiableSet(monsters);
-        this.moveId = moveId;
     }
 
-    public FightEvent(long id, City city, long moveId, Monster... monsters) {
-        this(id, city, new HashSet<>(Arrays.asList(monsters)), moveId);
+    public FightEvent(long id, City city, Monster... monsters) {
+        this(id, city, new HashSet<>(Arrays.asList(monsters)));
     }
 
     public long getId() {
@@ -48,10 +46,6 @@ public class FightEvent implements Event {
 
     public Set<Monster> getMonsters() {
         return monsters;
-    }
-
-    public long getMoveId() {
-        return moveId;
     }
 
     /**

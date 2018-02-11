@@ -1,6 +1,6 @@
-package org.gli58.util;
+package org.gli58.game.util;
 
-import org.gli58.domain.City;
+import org.gli58.game.City;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -9,16 +9,17 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.net.URI;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+
+//import java.util.stream.Collectors;
 
 public class MapParsingAndSavingTest {
 
@@ -41,7 +42,7 @@ public class MapParsingAndSavingTest {
             final String NEWLINE = System.getProperty("line.separator");
 
             //Note about the last NEWLINE
-            String citiesRead = lines.stream().collect(Collectors.joining(NEWLINE, "", NEWLINE));
+            String citiesRead = lines.stream().collect(joining(NEWLINE, "", NEWLINE));
 
             StringWriter sw = new StringWriter();
             MapIO.writeCities(cities, new PrintWriter(sw));
